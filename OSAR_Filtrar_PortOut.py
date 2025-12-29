@@ -2,12 +2,11 @@ import os
 import sys
 import threading
 import time
-from datetime import datetime
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-
 import pandas as pd
 
+from datetime import datetime
+from tkinter import ttk, filedialog, messagebox
 
 # =========================
 # Helpers
@@ -268,8 +267,8 @@ class App(tk.Tk):
         ent.configure(state="readonly")
 
         ttk.Button(inner, text="Elegir...", style="Accent.TButton", command=cmd).pack(side="right")
-        
-        def _combo_picker(self, parent, label, var):
+
+    def _combo_picker(self, parent, label, var):
         row = ttk.Frame(parent, style="Card.TFrame")
         row.pack(fill="x", padx=14, pady=6)
 
@@ -277,7 +276,7 @@ class App(tk.Tk):
         inner = ttk.Frame(row, style="Card.TFrame")
         inner.pack(fill="x", pady=(6, 0))
 
-        cmb = ttk.Combobox(inner, textvariable=var, state="readonly")
+        cmb = ttk.Combobox(inner, textvariable=var, state="disabled")
         cmb.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         ttk.Label(inner, text="Elegí un archivo de la carpeta", style="CardText.TLabel").pack(side="right")
@@ -289,8 +288,8 @@ class App(tk.Tk):
         self.txt.insert("end", f"[{ts}] {msg}\n")
         self.txt.see("end")
         self.update_idletasks()
-        
-        def _populate_portin_files(self, folder: str):
+
+    def _populate_portin_files(self, folder: str):
         files = list_excel_files(folder)
         self.portin_files = files
         choices = [os.path.basename(f) for f in files]
@@ -299,9 +298,11 @@ class App(tk.Tk):
         if choices:
             # Seleccionar el primero por defecto
             self.portin_file.set(choices[0])
+            self.portin_combo.configure(state="readonly")
             self._log(f"Encontrados {len(choices)} archivos PORTIN. Seleccionado: {choices[0]}")
         else:
             self.portin_file.set("")
+            self.portin_combo.configure(state="disabled")
             self._log("⚠️ La carpeta PORTIN no contiene archivos Excel.")
 
     def pick_portin_folder(self):
@@ -336,6 +337,7 @@ class App(tk.Tk):
         self.portin_files = []
         if hasattr(self, "portin_combo"):
             self.portin_combo["values"] = []
+            self.portin_combo.configure(state="disabled")
         self.progress["value"] = 0
         self.txt.delete("1.0", "end")
         self.status.set("Listo.")
