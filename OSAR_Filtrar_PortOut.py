@@ -2,11 +2,12 @@ import os
 import sys
 import threading
 import time
+from datetime import datetime
 import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+
 import pandas as pd
 
-from datetime import datetime
-from tkinter import ttk, filedialog, messagebox
 
 # =========================
 # Helpers
@@ -107,7 +108,6 @@ class App(tk.Tk):
         self.configure(bg=OSAR_BG)
 
         self.portin_folder = tk.StringVar()
-        self.portin_file = tk.StringVar()
         self.portout_file = tk.StringVar()
         self.output_folder = tk.StringVar()
         self.status = tk.StringVar(value="Listo.")
@@ -137,25 +137,6 @@ class App(tk.Tk):
 
         style.configure("TEntry", fieldbackground="#0E1730", foreground=OSAR_TEXT, bordercolor="#223055")
         style.map("TEntry", fieldbackground=[("readonly", "#0E1730")])
-        
-        style.configure(
-            "Osar.TCombobox",
-            fieldbackground="#0E1730",
-            background=OSAR_CARD,
-            foreground=OSAR_TEXT,
-            bordercolor="#223055",
-            arrowcolor=OSAR_TEXT,
-            selectbackground="#223055",
-            selectforeground=OSAR_TEXT,
-            padding=(6, 6),
-            font=("Segoe UI", 10),
-        )
-        style.map(
-            "Osar.TCombobox",
-            fieldbackground=[("readonly", "#0E1730"), ("disabled", "#0E1730")],
-            foreground=[("disabled", OSAR_MUTED)],
-            arrowcolor=[("disabled", OSAR_MUTED)],
-        )
 
         style.configure("Accent.TButton",
                         background=OSAR_ACCENT_2,
@@ -185,7 +166,7 @@ class App(tk.Tk):
 
     def _build_layout(self):
         header = ttk.Frame(self, style="TFrame")
-        header.pack(fill="x", padx=18, pady=(16, 10))
+        header.pack(fill="x", padx=18, pady=(10, 6))
 
         ttk.Label(header, text="OSAR · Filtrar PortOut vs PortIn", style="Title.TLabel").pack(anchor="w")
         ttk.Label(
@@ -195,7 +176,7 @@ class App(tk.Tk):
         ).pack(anchor="w", pady=(6, 0))
 
         body = ttk.Frame(self, style="TFrame")
-        body.pack(fill="both", expand=True, padx=18, pady=10)
+        body.pack(fill="both", expand=True, padx=14, pady=8)
 
         # Left card (inputs)
         left = ttk.Frame(body, style="Card.TFrame")
@@ -207,7 +188,7 @@ class App(tk.Tk):
         )
 
         self._row_picker(left, "Carpeta PortIn (muchos Excel):", self.portin_folder, self.pick_portin_folder)
-        self._combo_picker(left, "Archivo PortIn a usar (dentro de la carpeta):", self.portin_file)
+        self._list_picker(left, "Archivo(s) PortIn a usar (dentro de la carpeta):")
         self._row_picker(left, "Archivo PortOut (Excel):", self.portout_file, self.pick_portout_file)
         self._row_picker(left, "Carpeta destino (salida):", self.output_folder, self.pick_output_folder)
 
@@ -287,7 +268,7 @@ class App(tk.Tk):
 
         ttk.Button(inner, text="Elegir...", style="Accent.TButton", command=cmd).pack(side="right")
 
-    def _combo_picker(self, parent, label, var):
+    def _list_picker(self, parent, label):
         row = ttk.Frame(parent, style="Card.TFrame")
         row.pack(fill="x", padx=14, pady=6)
 
@@ -295,12 +276,45 @@ class App(tk.Tk):
         inner = ttk.Frame(row, style="Card.TFrame")
         inner.pack(fill="x", pady=(6, 0))
 
-        cmb = ttk.Combobox(inner, textvariable=var, state="disabled", style="Osar.TCombobox")
-        cmb.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        list_frame = ttk.Frame(inner, style="Card.TFrame")
+        list_frame.pack(fill="x", padx=(0, 0))
 
-        ttk.Label(inner, text="Elegí un archivo de la carpeta", style="CardText.TLabel").pack(side="right")
+        self.portin_list = tk.Listbox(
+            list_frame,
+            selectmode="multiple",
+            activestyle="none",
+            bg="#0E1730",
+            fg=OSAR_TEXT,
+            selectbackground="#223055",
+            selectforeground=OSAR_TEXT,
+            highlightthickness=2,
+            highlightbackground="#223055",
+            relief="flat",
+            font=("Segoe UI", 10),
+            height=8,
+            exportselection=False,
+            state="disabled",
+        )
+        self.portin_list.pack(side="left", fill="both", expand=True, padx=(6, 0), pady=(4, 4))
 
-        self.portin_combo = cmb
+        sb = ttk.Scrollbar(list_frame, orient="vertical", command=self.portin_list.yview)
+        sb.pack(side="right", fill="y", pady=(4, 4))
+        self.portin_list.configure(yscrollcommand=sb.set)
+
+        info_status = ttk.Frame(inner, style="Card.TFrame")
+        info_status.pack(fill="x", pady=(4, 0))
+        ttk.Label(info_status, text="✅ Click para tildar varios (no hace falta Ctrl/Shift).", style="CardText.TLabel").pack(anchor="w")
+        ttk.Label(info_status, text="Usá \"Seleccionar todos\" para marcarlos rápido.", style="CardText.TLabel").pack(anchor="w", pady=(2, 6))
+
+        status_row = ttk.Frame(info_status, style="Card.TFrame")
+        status_row.pack(fill="x", pady=(0, 4))
+        self.portin_status = ttk.Label(status_row, text="0 archivos seleccionados", style="CardText.TLabel")
+        self.portin_status.pack(side="left", padx=(0, 12))
+        self.btn_select_all = ttk.Button(status_row, text="Seleccionar todos", style="Accent.TButton",
+                                         command=self.select_all_portins, state="disabled")
+        self.btn_select_all.pack(side="left")
+
+        self.portin_list.bind("<<ListboxSelect>>", lambda e: self._update_portin_selection_status())
 
     def _log(self, msg: str):
         ts = datetime.now().strftime("%H:%M:%S")
@@ -312,16 +326,21 @@ class App(tk.Tk):
         files = list_excel_files(folder)
         self.portin_files = files
         choices = [os.path.basename(f) for f in files]
-        self.portin_combo["values"] = choices
+
+        self.portin_list.configure(state="normal")
+        self.portin_list.delete(0, "end")
+        for c in choices:
+            self.portin_list.insert("end", c)
 
         if choices:
-            # Seleccionar el primero por defecto
-            self.portin_file.set(choices[0])
-            self.portin_combo.configure(state="readonly")
+            self.portin_list.selection_set(0)
+            self.btn_select_all.configure(state="normal")
+            self._update_portin_selection_status()
             self._log(f"Encontrados {len(choices)} archivos PORTIN. Seleccionado: {choices[0]}")
         else:
-            self.portin_file.set("")
-            self.portin_combo.configure(state="disabled")
+            self.portin_list.configure(state="disabled")
+            self.btn_select_all.configure(state="disabled")
+            self._update_portin_selection_status()
             self._log("⚠️ La carpeta PORTIN no contiene archivos Excel.")
 
     def pick_portin_folder(self):
@@ -350,13 +369,15 @@ class App(tk.Tk):
         if self.is_running:
             return
         self.portin_folder.set("")
-        self.portin_file.set("")
         self.portout_file.set("")
         self.output_folder.set("")
         self.portin_files = []
-        if hasattr(self, "portin_combo"):
-            self.portin_combo["values"] = []
-            self.portin_combo.configure(state="disabled")
+        if hasattr(self, "portin_list"):
+            self.portin_list.delete(0, "end")
+            self.portin_list.configure(state="disabled")
+        if hasattr(self, "btn_select_all"):
+            self.btn_select_all.configure(state="disabled")
+        self._update_portin_selection_status()
         self.progress["value"] = 0
         self.txt.delete("1.0", "end")
         self.status.set("Listo.")
@@ -380,13 +401,13 @@ class App(tk.Tk):
         portin_folder = self.portin_folder.get().strip()
         portout_file = self.portout_file.get().strip()
         out_folder = self.output_folder.get().strip()
-        selected_portin = self.portin_file.get().strip()
+        selected_portins = [self.portin_list.get(i) for i in self.portin_list.curselection()]
 
         if not portin_folder or not os.path.isdir(portin_folder):
             messagebox.showerror("Falta dato", "Seleccioná una carpeta válida de PORTIN.")
             return
-        if not selected_portin:
-            messagebox.showerror("Falta dato", "Seleccioná un archivo PORTIN de la lista.")
+        if not selected_portins:
+            messagebox.showerror("Falta dato", "Seleccioná uno o más archivos PORTIN de la lista.")
             return
         if not portout_file or not os.path.isfile(portout_file):
             messagebox.showerror("Falta dato", "Seleccioná un archivo válido de PORTOUT.")
@@ -406,20 +427,24 @@ class App(tk.Tk):
     def _process(self):
         try:
             portin_folder = self.portin_folder.get().strip()
-            selected_portin = self.portin_file.get().strip()
+            selected_portins = [self.portin_list.get(i) for i in self.portin_list.curselection()]
             portout_file = self.portout_file.get().strip()
             out_folder = self.output_folder.get().strip()
 
             portin_map = {os.path.basename(p): p for p in self.portin_files}
-            if selected_portin not in portin_map:
-                raise ValueError("Seleccioná un archivo PORTIN válido de la lista.")
+            if any(sp not in portin_map for sp in selected_portins):
+                raise ValueError("Seleccioná archivos PORTIN válidos de la lista.")
 
-            portin_file_path = portin_map[selected_portin]
+            anis_portin: set[str] = set()
+            total_portins = len(selected_portins)
 
-            self._log("Leyendo archivo PORTIN seleccionado...")
-            anis_portin = read_portin_anis_from_file(portin_file_path)
+            for idx, sel in enumerate(selected_portins, start=1):
+                portin_file_path = portin_map[sel]
+                self._log(f"Leyendo PORTIN ({idx}/{total_portins}): {os.path.basename(portin_file_path)}")
+                anis_portin |= read_portin_anis_from_file(portin_file_path)
+
             self.progress["value"] = 25
-            self._log(f"PORTIN seleccionado: {os.path.basename(portin_file_path)} · ANIs encontrados: {len(anis_portin)}")
+            self._log(f"PORTIN seleccionados: {total_portins} · ANIs únicos encontrados: {len(anis_portin)}")
 
             if self.cancel_requested:
                 raise RuntimeError("Proceso cancelado por el usuario.")
@@ -473,6 +498,22 @@ class App(tk.Tk):
             messagebox.showerror("Error", str(e))
         finally:
             self._set_running(False)
+
+    def _update_portin_selection_status(self):
+        if hasattr(self, "portin_status"):
+            total = self.portin_list.size() if hasattr(self, "portin_list") else 0
+            selected = len(self.portin_list.curselection()) if hasattr(self, "portin_list") else 0
+            self.portin_status.configure(text=f"{selected} / {total} archivos seleccionados")
+
+    def select_all_portins(self):
+        if not hasattr(self, "portin_list"):
+            return
+        if self.portin_list["state"] == "disabled":
+            return
+        if self.portin_list.size() == 0:
+            return
+        self.portin_list.selection_set(0, "end")
+        self._update_portin_selection_status()
 
 
 if __name__ == "__main__":
