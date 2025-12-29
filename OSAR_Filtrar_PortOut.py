@@ -137,6 +137,25 @@ class App(tk.Tk):
 
         style.configure("TEntry", fieldbackground="#0E1730", foreground=OSAR_TEXT, bordercolor="#223055")
         style.map("TEntry", fieldbackground=[("readonly", "#0E1730")])
+        
+        style.configure(
+            "Osar.TCombobox",
+            fieldbackground="#0E1730",
+            background=OSAR_CARD,
+            foreground=OSAR_TEXT,
+            bordercolor="#223055",
+            arrowcolor=OSAR_TEXT,
+            selectbackground="#223055",
+            selectforeground=OSAR_TEXT,
+            padding=(6, 6),
+            font=("Segoe UI", 10),
+        )
+        style.map(
+            "Osar.TCombobox",
+            fieldbackground=[("readonly", "#0E1730"), ("disabled", "#0E1730")],
+            foreground=[("disabled", OSAR_MUTED)],
+            arrowcolor=[("disabled", OSAR_MUTED)],
+        )
 
         style.configure("Accent.TButton",
                         background=OSAR_ACCENT_2,
@@ -276,7 +295,7 @@ class App(tk.Tk):
         inner = ttk.Frame(row, style="Card.TFrame")
         inner.pack(fill="x", pady=(6, 0))
 
-        cmb = ttk.Combobox(inner, textvariable=var, state="disabled")
+        cmb = ttk.Combobox(inner, textvariable=var, state="disabled", style="Osar.TCombobox")
         cmb.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         ttk.Label(inner, text="Elegí un archivo de la carpeta", style="CardText.TLabel").pack(side="right")
